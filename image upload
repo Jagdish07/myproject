@@ -1,0 +1,109 @@
+public function uploadFile($fieldName,$params= array()){
+	
+		$isUploaded = trim(@$_FILES[$fieldName]['name']) != '' ? true : false;
+		$upload_data = NULL;
+		$error = NULL;
+		
+		if( $isUploaded ){ 
+			$dir = trim(@$params['dir']) != '' ? '/'.trim(trim($params['dir'],'/')) : ''; 
+			$config['upload_path'] = 'uploads'.$dir;
+			
+			if( isset($params['types']) )   $config['allowed_types'] = is_array($params['types']) ? implode('|',$params['types']) : $params['types'];
+			if( (int)@$params['size'] > 0 ) $config['max_size'] = $params['size'];
+			$config['file_name'] = isset($params['name']) ? $params['name'] : date("YmdHis");
+			 
+			$uploadBase = dirname(BASEPATH).'/'.$config['upload_path'];
+			if( !is_dir($uploadBase) ) @mkdir($uploadBase,0777,true);
+			
+			$this->load->library('upload', $config);
+			$this->upload->initialize($config);
+			// $this->upload->set_allowed_types('*');
+	
+			
+			if (!$this->upload->do_upload($fieldName)) {
+				$error = $this->upload->display_errors();
+			} else { 
+				$upload_data = $this->upload->data();
+			}
+			
+			if( isset($upload_data['file_name']) ){
+				$upload_data['file_url'] = $file_url = $config['upload_path'].'/'.$upload_data['file_name'];
+				$upload_data['http_url'] = $this->getUrl($file_url,false);
+			}
+		}
+		
+		return array('is_empty'=>!$isUploaded,'data'=>$upload_data,'error'=>$error);
+	
+}
+
+
+$imgData = array(
+				'size' => 1024*5,
+				'dir' => 'profile_images',
+				'types' => array('jpeg','jpg','png','gif')
+			);
+			
+			$imageUploaded = $this->uploadFile('userimage',$imgData);			
+			$imageUrl = isset($imageUploaded['data']['http_url']) ? $imageUploaded['data']['http_url'] : trim(@$_REQUEST['userimage_hidden']);
+			
+			$data = array(
+				//'user_name' => $this->input->post('username'),
+				'email' => $this->input->post('email'),
+				'first_name' => $this->input->post('first_name'),
+				'last_name' => $this->input->post('last_name'),
+				'gender' => $this->input->post('gender'),
+				'birthdate' => $this->input->post('birthdate'),
+				'mobile' => $this->input->post('mobile'),
+				'address' => $this->input->post('address'),
+				'city' => $this->input->post('city'),
+				'state' => $this->input->post('state'),
+				'country' => $this->input->post('country'),
+				'image' => $imageUrl,
+				'postalcode' => $this->input->post('postalcode'),
+				'ischaemic_heart_disease' => @$this->input->post('ischaemic_heart_disease'),
+				'palpitations_arrhythmias' => @$this->input->post('palpitations_arrhythmias'),
+				'valves' => @$this->input->post('valves'),
+				'heart_muscle' => @$this->input->post('heart_muscle'),
+				'sheath' => @$this->input->post('sheath'),
+				'pacemakers' => @$this->input->post('pacemakers'),
+				'aortic' => @$this->input->post('aortic'),
+				'congenital' => @$this->input->post('congenital'),
+				'assist_devices' => @$this->input->post('assist_devices'),
+				'masses' => @$this->input->post('masses'),
+				'other_future' => @$this->input->post('other_future'),
+				'other_heart_condition' => @$this->input->post('other_heart_condition')
+			
+			);
+			
+			if ( $this->form_validation->run() == true){	
+				
+				$r =  $this->db->update('users',$data,array('id'=>$this->session->userdata('id')));
+				if( $r ) {
+					if( $imageUploaded['is_empty'] || ( !$imageUploaded['is_empty'] && !isset($imageUploaded['error'])) )
+						$this->session->set_flashdata('msg', '<div class="alert alert-success">Profile Updated Successfuly !!!</div>');
+										
+						$uData= array('is_client_login' => true,'is_admin_login' => false,'id' => $this->session->userdata('id'));
+					foreach($data as $f => $v) $uData[$f] = $v; 
+					$this->session->set_userdata($uData);	
+				
+				}
+				else 
+					$this->session->set_flashdata('msg', '<div class="alert alert-danger">There are problem to update profile !!!</div>');				
+	
+				if( $imageUploaded['is_empty'] || ( !$imageUploaded['is_empty'] && !isset($imageUploaded['error'])) )
+					redirect($this->getUrl('edit-profile'));
+					
+			}
+		
+			if( isset($imageUploaded['error']) ){
+				$this->session->set_flashdata('msg', '<div class="alert alert-danger">'.$imageUploaded['error'].'</div>');	
+				redirect($this->getUrl('edit-profile'));
+			}
+			
+		}
+		$arg['pageName'] = 'Edit Profile';
+		$arg['pageTitle'] = 'Edit Profile';
+		
+		$data = array_merge((array)@$data,(array)@$arg); 
+		$this->render('edit-profile',$data);
+	}
